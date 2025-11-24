@@ -1,7 +1,7 @@
 streamlit
 sqlalchemy
 faiss-cpu
-langchain
+langchain>=0.1.0
 langchain-community
 langchain-core
 langchain-google-genai
