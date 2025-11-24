@@ -1,0 +1,11 @@
+streamlit
+sqlalchemy
+faiss-cpu
+langchain
+langchain-community
+langchain-core
+langchain-google-genai
+pymupdf4llm
+PyMuPDF
+pdfplumber
+python-dotenv
