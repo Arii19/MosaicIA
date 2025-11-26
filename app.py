@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from main import answer_question
+from main import answer_question, reset_user_memory
 
 CHAT_MAX_WIDTH = 900
 CHAT_INPUT_WRAPPER_ID = "chat-input-wrapper"
@@ -276,6 +276,8 @@ else:
 
 if new_chat_clicked:
     st.session_state.messages = []
+    st.session_state.reset_chat_input = False
+    reset_user_memory(USER_ID)
     st.rerun()
 
 if "messages" not in st.session_state or new_chat_clicked:
