@@ -3,14 +3,14 @@ from functools import lru_cache
 from typing import Dict, Optional
 
 from dotenv import load_dotenv
-from langchain_classic.chains import ConversationalRetrievalChain
-from langchain_classic.memory import ConversationBufferMemory
-from langchain_classic.retrievers import EnsembleRetriever
+from langchain.chains import ConversationalRetrievalChain
+from langchain.memory import ConversationBufferMemory
+from langchain.retrievers import EnsembleRetriever
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.retrievers import BM25Retriever
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_google_genai.chat_models import ChatGoogleGenerativeAI
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
@@ -59,7 +59,7 @@ def _build_ensemble_retriever() -> EnsembleRetriever:
     embedding_model_name = "sentence-transformers/all-MiniLM-L6-v2"
     embeddings_model = HuggingFaceEmbeddings(model_name=embedding_model_name)
 
-    vectorstore = Chroma.from_documents(documents=chunks, embedding=embeddings_model)
+    vectorstore = FAISS.from_documents(documents=chunks, embedding=embeddings_model)
     vector_retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
 
     bm25_retriever = BM25Retriever.from_documents(chunks)
