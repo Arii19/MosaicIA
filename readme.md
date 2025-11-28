@@ -1,216 +1,142 @@
-# 🤖 Integrador de Dados - Sistema IA para Consultas Técnicas
+# Mosaic IA Assistant
 
-[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io/)
-[![LangChain](https://img.shields.io/badge/LangChain-0.1+-green.svg)](https://www.langchain.com/)
-[![Google AI](https://img.shields.io/badge/Google%20AI-Gemini-yellow.svg)](https://ai.google.dev/)
+> Plataforma RAG que combina um backend FastAPI com frontend React para responder perguntas sobre documentação agrícola (PIMS) com apoio do Google Gemini.
 
-> **Sistema inteligente de consultas técnicas** que utiliza **RAG (Retrieval-Augmented Generation)** para responder perguntas específicas sobre procedures, sistemas e documentação técnica com alta precisão.
+## Visão Geral
 
----
+- Assistente virtual orientado a documentos técnicos da Mosaic.
+- Recupera trechos relevantes de markdowns em `docs/` e gera respostas contextuais.
+- Cada usuário possui histórico persistido em banco relacional (`chat_history`).
+- Interface web responsiva (sidebar + chat) consumindo a API REST `/api/*`.
 
-## 🎯 **Características Principais**
+## Principais Funcionalidades
 
-### ✨ **Triagem Inteligente Ultra-Refinada**
-- **AUTO_RESOLVER**: Respostas diretas para perguntas técnicas específicas
-- **PEDIR_INFO**: Solicitação de esclarecimentos apenas quando extremamente necessário
-- **Detecção automática**: Procedures (`INT.`, `SP_`), sistemas, códigos técnicos
-- **Confiança alta**: 80-95% para perguntas técnicas bem formuladas
+- **RAG híbrido**: Ensemble FAISS (dense) + BM25 (lexical) para encontrar evidências.
+- **LLM Google Gemini 2.5 Flash** com conversação contextual por usuário.
+- **Histórico persistido** com reset individual e listagem diretamente na UI.
+- **Frontend otimista** com atualização imediata e composer responsivo.
+- **Conversão de PDFs** para Markdown via `converter_pdf_markdown.py` quando necessário.
 
-### 🔍 **Sistema RAG Avançado Multi-Estratégia**
-- **Busca semântica**: Embeddings Google Gemini + FAISS vectorstore
-- **Expansão de termos**: Busca automática por sinônimos e termos relacionados
-- **Múltiplas estratégias**: Similaridade + MMR + palavras-chave expandidas
-- **Threshold adaptativo**: 0.15 para maior cobertura de resultados
+## Arquitetura
 
-### 💬 **Persona Técnica Especializada**
-- **Integrador de Dados**: Foco em procedures, sistemas e documentação técnica
-- **Respostas concisas**: 50-150 palavras, diretas ao ponto
-- **Linguagem técnica**: Apropriada para desenvolvedores e analistas
-- **Citações precisas**: Referências exatas aos documentos fonte
+```
+[React/Vite SPA] --HTTP--> [FastAPI /api]
+                          ├── LangChain RAG (FAISS + BM25)
+                          ├── Google Generative AI (Gemini)
+                          └── PostgreSQL (chat_history)
+```
 
----
+- Backend em Python 3.11 com FastAPI, SQLAlchemy e LangChain.
+- Frontend em React 18 (Vite) com fetch nativo e CSS customizado.
+- Documentos técnicos carregados em memória no primeiro uso e cacheados.
 
-## 🚀 **Funcionalidades Avançadas**
+## Requisitos
 
-| Funcionalidade | Descrição | Status |
-|---|---|---|
-| **Triagem Contextual** | Análise inteligente de sentimento e categoria | ✅ |
-| **RAG Multi-Camadas** | Busca semântica + expandida + MMR | ✅ |
-| **Cache Inteligente** | Respostas em cache para perguntas frequentes | ✅ |
-| **Validação de Resposta** | Controle automático de qualidade e concisão | ✅ |
-| **Debug Logs** | Monitoramento detalhado do processo de busca | ✅ |
-| **Citações Melhoradas** | Referências com página, documento e relevância | ✅ |
+- Python 3.11+
+- Node.js 18+
+- Chave Google Generative AI (`GOOGLE_API_KEY`)
+- Banco compatível com SQLAlchemy (PostgreSQL recomendado)
 
----
+## Configuração Rápida
 
-## 🛠️ **Stack Tecnológica**
+### 1. Clonar o Repositório
 
-### **Core**
-- **Python 3.10+**: Linguagem base
-- **Streamlit**: Interface web responsiva
-- **LangChain**: Orquestração de IA e workflows
-- **Google Generative AI**: Modelo Gemma-3-27b-it + embeddings
-
-### **RAG & Vectorstore**
-- **FAISS**: Busca vetorial de alta performance
-- **PyMuPDF**: Processamento de documentos PDF
-- **RecursiveCharacterTextSplitter**: Chunking inteligente (800 chars, overlap 100)
-
-### **Workflow & Estado**
-- **LangGraph**: StateGraph para fluxo de decisões
-- **Gestão de Estado**: Controle de conversação e tentativas
-- **Cache System**: LRU cache + hash de perguntas
-
----
-
-## ⚙️ **Instalação e Configuração**
-
-### **1. Clone e Setup**
 ```bash
-git clone https://github.com/Arii19/IAIntegradoradeDados.git
-cd IAIntegradoradeDados
+git clone https://github.com/Arii19/MosaicIA.git
+cd MosaicIA
+```
 
-# Criar ambiente virtual
+### 2. Backend FastAPI
+
+```bash
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# ou
-venv\Scripts\activate  # Windows
-```
-
-### **2. Instalar Dependências**
-```bash
+source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+
+# Crie um arquivo .env na raiz
+echo "DATABASE_URL=postgresql://user:pass@host:5432/db" >> .env
+echo "GOOGLE_API_KEY=sua_chave" >> .env
+
+# Executar localmente
+uvicorn app:app --reload
 ```
 
-### **3. Configurar API Key**
+Endpoints úteis: `GET /api/health`, `GET /api/history/{user_id}`, `POST /api/chat`.
+
+### 3. Frontend React
+
 ```bash
-# Criar arquivo .env
-echo "API_KEY=sua_google_api_key_aqui" > .env
+cd frontend
+npm install
+
+# Configure o endpoint do backend
+echo "VITE_API_URL=http://localhost:8000/api" > .env.local
+
+# Ambiente de desenvolvimento
+npm run dev
+
+# Build de produção
+npm run build
 ```
 
-### **4. Adicionar Documentos**
-```bash
-# Criar pasta docs e adicionar PDFs
-mkdir docs
-# Copiar seus PDFs técnicos para a pasta docs/
+### 4. Documentos de Conhecimento
+
+- Insira arquivos `.md` em `docs/`. Ex.: `DOC_SP_DES_INT_ESTIMATIVA_PIMS.md`.
+- Para converter PDFs utilize `python converter_pdf_markdown.py`.
+
+## Variáveis de Ambiente
+
+| Nome               | Descrição                                        | Exemplo                           |
+|--------------------|--------------------------------------------------|-----------------------------------|
+| `DATABASE_URL`     | Conexão SQLAlchemy                               | `postgresql://user:pass@host/db`  |
+| `GOOGLE_API_KEY`   | Chave Google Generative AI                       | `AIza...`                         |
+| `ALLOWED_ORIGINS`  | Lista CSV com origens autorizadas no CORS        | `https://app.onrender.com`        |
+| `VITE_API_URL`     | (Frontend) URL base da API                       | `https://backend/api`             |
+
+## Scripts Úteis
+
+| Comando                           | Descrição                              |
+|-----------------------------------|----------------------------------------|
+| `uvicorn app:app --reload`        | Executa API local com hot-reload       |
+| `npm run dev` (frontend/)         | Inicia frontend em modo desenvolvimento|
+| `npm run build` (frontend/)       | Gera artefatos estáticos para deploy   |
+| `python converter_pdf_markdown.py`| Converte PDF para Markdown              |
+
+## Estrutura de Diretórios
+
+```
+.
+├─ app.py              # FastAPI + rotas REST
+├─ main.py             # Pipeline LangChain / Gemini
+├─ docs/               # Fonte de conhecimento em Markdown
+├─ frontend/
+│  ├─ src/
+│  │  ├─ App.jsx       # Shell principal
+│  │  ├─ hooks/useChat # Cliente REST + estado
+│  │  └─ components/   # ChatWindow, Sidebar, MessageBubble
+│  └─ public/          # Logos e assets
+├─ Dockerfile          # Empacotamento do backend
+├─ Procfile            # Comando para Render/Heroku
+└─ requirements.txt    # Dependências Python
 ```
 
-### **5. Executar Sistema**
-```bash
-streamlit run app.py
-```
+## Deploy (Render)
+
+1. **Backend**: Web Service (Docker). Configure `DATABASE_URL`, `GOOGLE_API_KEY`, `ALLOWED_ORIGINS`. Health check em `/api/health`.
+2. **Frontend**: Static Site com root `frontend`, build `npm install && npm run build` e publish `frontend/dist`. Defina `VITE_API_URL` com a URL pública do backend.
+3. Se preferir servir o React pelo FastAPI, monte `StaticFiles` apontando para `frontend/dist` após executar o build durante a imagem Docker.
+
+## Testes
+
+- Ainda não há suíte oficial. Recomenda-se adicionar testes para as funções principais do RAG e para a API REST via `pytest`.
+
+## Roadmap
+
+- Adicionar autenticação de usuários.
+- Persistir o índice FAISS em disco para reduzir cold start.
+- Criar testes automatizados e monitoramento (logs estruturados, métricas).
+- Otimizar `requirements.txt` removendo dependências legadas (ex.: Streamlit) quando não forem mais necessárias.
 
 ---
 
-## 📊 **Exemplos de Uso**
-
-### **✅ Consultas Técnicas (Alta Confiança)**
-```
-👤 "para que serve a INT.INT_APLICINSUMOAGRIC"
-🤖 96% confiança | AUTO_RESOLVER
-📄 "A INT.INT_APLICINSUMOAGRIC é a tabela final resultante da consolidação e padronização de dados de aplicações de insumos agrícolas..."
-
-👤 "qual é a origem dos dados"  
-🤖 85% confiança | AUTO_RESOLVER
-📄 "A origem dos dados pode variar e depender do ERP (Enterprise Resource Planning)..."
-```
-
-### **⚠️ Consultas Vagas (Pede Esclarecimentos)**
-```
-👤 "preciso de ajuda"
-🤖 60% confiança | PEDIR_INFO
-❓ "Preciso de mais detalhes para ajudar melhor. Poderia ser mais específico?"
-```
-
----
-
-## � **Configurações Avançadas**
-
-### **Ajustar Triagem** (`main.py`)
-```python
-# Threshold de confiança para AUTO_RESOLVER
-if resultado["confianca"] < 0.2:  # Muito restritivo
-    resultado["decisao"] = "PEDIR_INFO"
-
-# Temperatura do modelo
-llm_triagem = ChatGoogleGenerativeAI(
-    model="models/gemma-3-27b-it",
-    temperature=0.1  # Mais determinístico
-)
-```
-
-### **Ajustar RAG** (`main.py`)
-```python
-# Threshold de similaridade
-retriever = vectorstore.as_retriever(
-    search_type="similarity_score_threshold",
-    search_kwargs={"score_threshold": 0.15, "k": 8}
-)
-
-# Chunking de documentos
-splitter = RecursiveCharacterTextSplitter(
-    chunk_size=800,     # Tamanho do chunk
-    chunk_overlap=100   # Sobreposição
-)
-```
-
----
-
-## 📈 **Performance e Métricas**
-
-| Métrica | Valor Típico | Descrição |
-|---|---|---|
-| **Confiança Média** | 85-95% | Para perguntas técnicas específicas |
-| **Tempo Resposta** | 2-5s | Incluindo busca RAG e geração |
-| **Recall** | 90%+ | Encontra informações quando existem |
-| **Precisão** | 95%+ | Respostas corretas quando confiantes |
-| **Concisão** | 50-150 palavras | Respostas diretas e objetivas |
-
----
-
-## 🚨 **Solução de Problemas**
-
-### **Quota API Esgotada**
-```
-Error: 429 You exceeded your current quota
-```
-**Solução**: Aguardar reset diário (4-5h AM) ou upgrade para plano pago
-
-### **Documentos Não Carregados**
-```
-[AVISO] Pasta 'docs' não encontrada
-```
-**Solução**: Criar pasta `docs/` e adicionar arquivos PDF
-
-### **Baixa Confiança em Respostas**
-**Soluções**:
-- Verificar se documento contém informação
-- Ajustar threshold de similaridade
-- Melhorar expansão de termos de busca
-
----
-
-## 🤝 **Contribuição**
-
-1. **Fork** o projeto
-2. **Crie** uma branch: `git checkout -b feature/nova-funcionalidade`
-3. **Commit** suas mudanças: `git commit -m 'Adiciona nova funcionalidade'`
-4. **Push** para branch: `git push origin feature/nova-funcionalidade`
-5. **Abra** um Pull Request
-
----
-
-## 📝 **Licença**
-
-Este projeto está sob licença **MIT**. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
-
----
-
-## 🏷️ **Tags**
-
-`#RAG` `#LangChain` `#GoogleAI` `#Streamlit` `#FAISS` `#DocumentQA` `#TechnicalDocs` `#IntegradorDados`
-
----
-
-**Desenvolvido com ❤️ para consultas técnicas precisas e eficientes.**
+Feito com apoio do GPT-5-Codex e do time Mosaic para democratizar conhecimento agrícola.
