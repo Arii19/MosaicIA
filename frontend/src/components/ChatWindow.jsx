@@ -45,9 +45,10 @@ function ChatWindow({
     }
 
     try {
-      await onSend(text);
       setDraft('');
+      await onSend(text);
     } catch (sendError) {
+      setDraft(text);
       // A mensagem de erro já é exibida pela prop `error`
     }
   };

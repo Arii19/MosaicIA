@@ -216,6 +216,8 @@
   font-weight: 500;
   color: #e2e8f0;
   font-size: 0.95rem;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
 }
 
 .sidebar__history-date {
