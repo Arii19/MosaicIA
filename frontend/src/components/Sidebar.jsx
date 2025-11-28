@@ -25,6 +25,7 @@ function Sidebar({
   onRefresh,
   isLoading,
   onPrefill,
+  onShowHistory,
 }) {
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === 'undefined') {
@@ -63,9 +64,13 @@ function Sidebar({
     setCollapsed((prev) => !prev);
   };
 
-  const handleSelectHistory = (question) => {
+  const handleSelectHistory = (item) => {
+    if (onShowHistory) {
+      onShowHistory(item?.created_at);
+    }
+
     if (onPrefill) {
-      onPrefill(question);
+      onPrefill(item?.question);
     }
 
     if (typeof window !== 'undefined' && window.innerWidth <= 820) {
@@ -138,7 +143,7 @@ function Sidebar({
               type="button"
               key={item.id}
               className="sidebar__history-item"
-              onClick={() => handleSelectHistory(item.question)}
+              onClick={() => handleSelectHistory(item)}
             >
               <span className="sidebar__history-question">{item.question}</span>
               <span className="sidebar__history-date">{formatDate(item.created_at)}</span>

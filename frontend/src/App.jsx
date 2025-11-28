@@ -24,6 +24,7 @@ function App() {
     sendMessage,
     resetChat,
     refresh,
+    showHistory,
   } = useChat(apiBaseUrl, userId);
 
   const handleReset = async () => {
@@ -41,6 +42,7 @@ function App() {
         onRefresh={refresh}
         isLoading={isLoading}
         onPrefill={setPrefill}
+        onShowHistory={showHistory}
       />
       <ChatWindow
         userId={userId}

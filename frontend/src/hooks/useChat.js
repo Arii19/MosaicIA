@@ -173,6 +173,21 @@ export function useChat(apiBaseUrl, userId) {
     setError('');
   }, [baseUrl, userId, fetchHistory]);
 
+  const showHistory = useCallback((createdAt) => {
+    if (!createdAt) {
+      setSessionAnchor(0);
+      return;
+    }
+
+    const timestamp = new Date(createdAt).getTime();
+    if (Number.isNaN(timestamp)) {
+      setSessionAnchor(0);
+      return;
+    }
+
+    setSessionAnchor(timestamp - 1);
+  }, []);
+
   return {
     chatPairs,
     messages,
@@ -182,5 +197,6 @@ export function useChat(apiBaseUrl, userId) {
     sendMessage,
     resetChat,
     refresh: fetchHistory,
+    showHistory,
   };
 }
