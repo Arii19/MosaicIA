@@ -18,14 +18,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create streamlit config directory
-RUN mkdir -p /root/.streamlit
-
 # Expose port for Render
 EXPOSE 8080
 
 # Health check
-HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
+HEALTHCHECK CMD curl --fail http://localhost:8080/api/health || exit 1
 
 # Run the application
-ENTRYPOINT ["streamlit", "run", "app.py", "--server.port=8080", "--server.address=0.0.0.0"]
+ENTRYPOINT ["uvicorn", "app:app", "--host=0.0.0.0", "--port=8080"]
