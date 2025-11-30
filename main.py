@@ -76,7 +76,7 @@ _USER_CHAINS: Dict[str, ConversationalRetrievalChain] = {}
 
 
 def _create_chain() -> ConversationalRetrievalChain:
-    """Construct a new conversational retrieval chain instance."""
+    """Criar uma nova instância de cadeia de recuperação de conversas.."""
 
     retriever = _build_ensemble_retriever()
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3)
@@ -100,7 +100,7 @@ def _create_chain() -> ConversationalRetrievalChain:
 
 
 def get_rag_chain(user_id: Optional[str] = None) -> ConversationalRetrievalChain:
-    """Expose a conversational retrieval chain for the given user."""
+    """Disponibilizar uma cadeia de recuperação de conversas para o usuário indicado."""
 
     cache_key = user_id or "default"
     if cache_key not in _USER_CHAINS:
@@ -109,14 +109,14 @@ def get_rag_chain(user_id: Optional[str] = None) -> ConversationalRetrievalChain
 
 
 def answer_question(question: str, user_id: Optional[str] = None) -> Dict:
-    """Run the RAG pipeline for a question and return the raw chain output."""
+    """Executar o pipeline RAG para uma pergunta e retornar a saída bruta da cadeia."""
 
     chain = get_rag_chain(user_id=user_id)
     return chain.invoke({"question": question})
 
 
 def reset_user_memory(user_id: Optional[str] = None) -> None:
-    """Clear cached chain (and memory) for a specific user."""
+    """Limpar a cadeia em cache (e memória) para um usuário específico."""
 
     cache_key = user_id or "default"
     _USER_CHAINS.pop(cache_key, None)
