@@ -15,7 +15,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 def _ensure_environment() -> None:
-    """Load environment variables and ensure required keys are available."""
+    """Carregar variáveis de ambiente e garantir que as chaves necessárias estejam disponíveis."""
 
     load_dotenv()
     google_api_key = os.getenv("GOOGLE_API_KEY")
@@ -29,7 +29,7 @@ def _ensure_environment() -> None:
 
 @lru_cache(maxsize=1)
 def _load_documents() -> list:
-    """Load and split documents from the docs directory."""
+    """Carregar e dividir documentos do diretório docs."""
 
     loader = DirectoryLoader(
         "docs/",
@@ -51,7 +51,7 @@ def _load_documents() -> list:
 
 @lru_cache(maxsize=1)
 def _build_ensemble_retriever() -> EnsembleRetriever:
-    """Create a hybrid retriever combining BM25 and dense embeddings."""
+    """Criar um recuperador híbrido combinando BM25 e embeddings densos."""
 
     _ensure_environment()
     chunks = _load_documents()
