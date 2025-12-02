@@ -151,10 +151,21 @@ export function useChat(apiBaseUrl, userId) {
   const resetChat = useCallback(async () => {
     const trimmedUser = (userId || '').trim();
 
+    const latestTimestamp = Array.isArray(chatPairs)
+      ? chatPairs.reduce((latest, pair) => {
+          const createdAt = new Date(pair?.created_at || 0).getTime();
+          if (!Number.isFinite(createdAt)) {
+            return latest;
+          }
+          return Math.max(latest, createdAt);
+        }, Date.now())
+      : Date.now();
+
+    setSessionAnchor(Math.max(Date.now(), latestTimestamp + 1));
+
     if (!trimmedUser) {
       setError('');
       setChatPairs([]);
-      setSessionAnchor(Date.now());
       return;
     }
 
@@ -168,10 +179,9 @@ export function useChat(apiBaseUrl, userId) {
       }
     }
 
-    setSessionAnchor(Date.now());
     await fetchHistory();
     setError('');
-  }, [baseUrl, userId, fetchHistory]);
+  }, [baseUrl, userId, chatPairs, fetchHistory]);
 
   const showHistory = useCallback((createdAt) => {
     if (!createdAt) {
