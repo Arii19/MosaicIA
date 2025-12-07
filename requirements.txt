@@ -3,6 +3,8 @@ langchain==0.2.14
 langchain-community==0.2.12
 langchain-google-genai==1.0.5
 langchain-text-splitters==0.2.0
+beautifulsoup4==4.12.3
+requests>=2.31.0
 
 # --- VETORES E RETRIEVERS ---
 sentence-transformers==2.7.0
