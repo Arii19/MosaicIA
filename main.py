@@ -18,15 +18,9 @@ from langchain_community.retrievers import BM25Retriever
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai.chat_models import ChatGoogleGenerativeAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-
-
-WIKI_BASE_URL = "https://gitlab.com/arii19-group/Arii19-project/-/wikis"
-WIKI_HOME_URL = f"{WIKI_BASE_URL}/home"
-WIKI_MAX_DEPTH_DEFAULT = 2
-WIKI_MAX_PAGES_DEFAULT = 25
-WIKI_REQUEST_TIMEOUT = 30
-
-logger = logging.getLogger(__name__)
+from threading import Lock
+from fastapi import FastAPI
+app = FastAPI()
 
 
 def _ensure_environment() -> None:
@@ -43,102 +37,16 @@ def _ensure_environment() -> None:
 
 
 @lru_cache(maxsize=1)
-def _fetch_wiki_documents(max_depth: int, max_pages: int) -> List[Document]:
-    """Baixar páginas do wiki e retornar como documentos LangChain."""
-
-    visited = set()
-    documents: List[Document] = []
-    queue = deque([(WIKI_HOME_URL, 0)])
-
-    while queue and len(documents) < max_pages:
-        current_url, depth = queue.popleft()
-        normalized_url = urldefrag(current_url)[0].rstrip("/")
-
-        if normalized_url in visited or depth > max_depth:
-            continue
-
-        try:
-            response = requests.get(current_url, timeout=WIKI_REQUEST_TIMEOUT)
-            response.raise_for_status()
-        except requests.RequestException as exc:
-            logger.warning("Falha ao buscar %s: %s", current_url, exc)
-            visited.add(normalized_url)
-            continue
-
-        soup = BeautifulSoup(response.text, "html.parser")
-        for tag in soup(["script", "style", "nav", "header", "footer"]):
-            tag.decompose()
-
-        content_container = (
-            soup.find("div", id="wiki-content")
-            or soup.find("div", class_="wiki")
-            or soup.find("article")
-            or soup.body
-            or soup
-        )
-
-        page_text = content_container.get_text(separator="\n").strip() if content_container else ""
-
-        if page_text:
-            documents.append(
-                Document(page_content=page_text, metadata={"source": normalized_url})
-            )
-
-        visited.add(normalized_url)
-
-        if depth >= max_depth:
-            continue
-
-        for link in content_container.find_all("a", href=True) if content_container else []:
-            href = link["href"].strip()
-            if not href or href.startswith("#"):
-                continue
-
-            absolute_url = urljoin(current_url, href)
-            absolute_url = urldefrag(absolute_url)[0].rstrip("/")
-
-            if not absolute_url.startswith(WIKI_BASE_URL):
-                continue
-
-            if any(absolute_url.endswith(ext) for ext in (".pdf", ".png", ".jpg", ".jpeg", ".svg")):
-                continue
-
-            if absolute_url not in visited:
-                queue.append((absolute_url, depth + 1))
-
-    return documents
-
-
-@lru_cache(maxsize=1)
 def _load_documents() -> list:
-    """Carregar e dividir documentos do wiki ou do diretório local."""
+    """Carregar e dividir documentos do diretório docs."""
 
-    try:
-        max_depth = int(os.getenv("WIKI_MAX_DEPTH", str(WIKI_MAX_DEPTH_DEFAULT)))
-    except ValueError:
-        max_depth = WIKI_MAX_DEPTH_DEFAULT
-
-    try:
-        max_pages = int(os.getenv("WIKI_MAX_PAGES", str(WIKI_MAX_PAGES_DEFAULT)))
-    except ValueError:
-        max_pages = WIKI_MAX_PAGES_DEFAULT
-
-    wiki_docs: List[Document] = []
-
-    fetch_remote = os.getenv("FETCH_WIKI_DOCS", "1").lower() not in {"0", "false"}
-    if fetch_remote:
-        wiki_docs = _fetch_wiki_documents(max_depth=max_depth, max_pages=max_pages)
-
-    if not wiki_docs:
-        loader = DirectoryLoader(
-            "docs/",
-            glob="*.md",
-            loader_cls=TextLoader,
-            loader_kwargs={"encoding": "utf-8", "autodetect_encoding": True},
-        )
-        docs = loader.load()
-    else:
-        docs = wiki_docs
+    loader = DirectoryLoader(
+        "docs/",
+        glob="*.md",
+        loader_cls=TextLoader,
+        loader_kwargs={"encoding": "utf-8", "autodetect_encoding": True},
+    )
+    docs = loader.load()
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=1200,
