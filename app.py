@@ -13,21 +13,6 @@ from main import reset_user_memory, run_rag_pipeline
 
 load_dotenv()
 
-import os
-from datetime import datetime
-from typing import Generator, List, Optional
-
-from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from sqlalchemy import TIMESTAMP, Column, Integer, String, Text, create_engine
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
-
-from main import answer_question, reset_user_memory
-
-load_dotenv()
-
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError(
