@@ -8,6 +8,7 @@ langchain-text-splitters==0.2.0
 sentence-transformers==2.7.0
 rank-bm25==0.2.2
 faiss-cpu==1.8.0
+beautifulsoup4==4.12.3
 
 python-dotenv==1.0.1
 sqlalchemy==2.0.44
@@ -25,6 +26,10 @@ numpy
 pandas
 tqdm
 transformers>=4.35.0
+requests==2.32.3
 
 # --- GOOGLE GENAI (compatível com langchain-google-genai 1.0.5) ---
 google-generativeai==0.5.4
+
+beautifulsoup4==4.12.3
+requests>=2.31.0

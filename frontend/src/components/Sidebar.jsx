@@ -20,6 +20,8 @@ function formatDate(value) {
 function Sidebar({
   userId,
   onUserIdChange,
+  apiBaseUrl,
+  onApiBaseChange,
   chatPairs,
   onReset,
   onRefresh,
@@ -106,6 +108,20 @@ function Sidebar({
             value={userId}
             onChange={(event) => onUserIdChange?.(event.target.value)}
           />
+        </div>
+
+        <div className="sidebar__input-wrapper">
+          <label className="sidebar__label" htmlFor="sidebar-api-base">
+            Endpoint da API
+          </label>
+          <input
+            id="sidebar-api-base"
+            className="sidebar__input"
+            placeholder="https://backend.exemplo/api"
+            value={apiBaseUrl}
+            onChange={(event) => onApiBaseChange?.(event.target.value)}
+          />
+          <span className="sidebar__hint">Valor salvo apenas neste navegador.</span>
         </div>
 
         <div className="sidebar__actions">

@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import TIMESTAMP, Column, Integer, String, Text, create_engine
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
-from main import answer_question, reset_user_memory
+from main import reset_user_memory, run_rag_pipeline
 
 load_dotenv()
 
@@ -83,18 +83,24 @@ class ChatResponse(BaseModel):
 app = FastAPI(title="Mosaic Chat API", version="1.0.0")
 
 
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "")
+raw_allowed_origins = os.getenv("ALLOWED_ORIGINS", "")
 default_origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:4173",
 ]
-origin_list = [origin.strip() for origin in allowed_origins.split(",") if origin.strip()] or default_origins
+
+if raw_allowed_origins.strip() == "*":
+    origin_list = ["*"]
+    allow_credentials = False
+else:
+    origin_list = [origin.strip() for origin in raw_allowed_origins.split(",") if origin.strip()] or default_origins
+    allow_credentials = True
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origin_list,
-    allow_credentials=True,
+    allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -189,7 +195,7 @@ def enviar_pergunta(
             detail="A pergunta não pode estar vazia.",
         )
 
-    raw_response = answer_question(question, user_id=user_id)
+    raw_response = run_rag_pipeline(question, user_id=user_id)
     answer = raw_response.get("answer") if isinstance(raw_response, dict) else str(raw_response)
 
     if isinstance(raw_response, dict):

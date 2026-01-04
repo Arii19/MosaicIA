@@ -5,7 +5,7 @@
 ## Visão Geral
 
 - Assistente virtual orientado a documentos técnicos da Mosaic.
-- Recupera trechos relevantes de markdowns em `docs/` e gera respostas contextuais.
+- Recupera trechos relevantes da Wiki privada do GitLab e gera respostas contextuais.
 - Cada usuário possui histórico persistido em banco relacional (`chat_history`).
 - Interface web responsiva (sidebar + chat) consumindo a API REST `/api/*`.
 
@@ -28,7 +28,7 @@
 
 - Backend em Python 3.11 com FastAPI, SQLAlchemy e LangChain.
 - Frontend em React 18 (Vite) com fetch nativo e CSS customizado.
-- Documentos técnicos carregados em memória no primeiro uso e cacheados.
+- Páginas da Wiki do GitLab carregadas em memória no primeiro uso e cacheadas.
 
 ## Requisitos
 
@@ -81,8 +81,8 @@ npm run build
 
 ### 4. Documentos de Conhecimento
 
-- Insira arquivos `.md` em `docs/`. Ex.: `DOC_SP_DES_INT_ESTIMATIVA_PIMS.md`.
-- Para converter PDFs utilize `python converter_pdf_markdown.py`.
+- Configure `WIKI_HOME_URL` (ex.: `https://gitlab.com/<group>/<project>/-/wikis/home`) e, opcionalmente, `WIKI_PAGE_SLUGS` com uma lista separada por vírgulas (`SP_AT_INT_APLICINSUMOAGRIC,SP_DES_INT_ESTIMATIVA_PIMS`).
+- O backend baixa automaticamente os `.md` dessas páginas da Wiki usando o `GITLAB_TOKEN` (quando definido).
 
 ## Variáveis de Ambiente
 
@@ -91,6 +91,8 @@ npm run build
 | `DATABASE_URL`     | Conexão SQLAlchemy                               | `postgresql://user:pass@host/db`  |
 | `GOOGLE_API_KEY`   | Chave Google Generative AI                       | `AIza...`                         |
 | `ALLOWED_ORIGINS`  | Lista CSV com origens autorizadas no CORS        | `https://app.onrender.com`        |
+| `WIKI_HOME_URL`    | URL da home da Wiki no GitLab                    | `https://gitlab.com/foo/bar/-/wikis/home` |
+| `WIKI_PAGE_SLUGS`  | Lista opcional de slugs da Wiki                  | `SP_AT_INT_APLICINSUMOAGRIC,SP_DES_INT_ESTIMATIVA_PIMS` |
 | `VITE_API_URL`     | (Frontend) URL base da API                       | `https://backend/api`             |
 
 ## Scripts Úteis

@@ -1,36 +1,15 @@
-import streamlit as st
-from main import processar_pergunta
-import traceback
+import os
 
-st.title("Teste de Debug do Assistente")
+import requests
+from dotenv import load_dotenv
 
-# Input simples
-pergunta = st.text_input("Digite sua pergunta:")
+load_dotenv()
 
-if st.button("Testar"):
-    if pergunta:
-        try:
-            st.write("🔄 Processando pergunta...")
-            
-            # Testar a função
-            resultado = processar_pergunta(pergunta)
-            
-            st.write("✅ Processamento concluído!")
-            st.write("**Ação Final:**", resultado.get("acao_final", "N/A"))
-            st.write("**Resposta:**")
-            
-            # Tentar exibir resposta de forma segura
-            resposta = resultado.get("resposta", "Sem resposta")
-            try:
-                st.text(resposta)  # Usar st.text em vez de st.markdown
-            except Exception as e:
-                st.error(f"Erro ao exibir resposta: {e}")
-                # Tentar versão sanitizada
-                resposta_safe = resposta.encode('ascii', 'ignore').decode('ascii')
-                st.text(resposta_safe)
-            
-            st.write("**Citações:**", len(resultado.get("citacoes", [])))
-            
-        except Exception as e:
-            st.error(f"❌ ERRO: {type(e).__name__}: {str(e)}")
-            st.code(traceback.format_exc())
+token = os.getenv("GITLAB_TOKEN")
+if not token:
+    raise RuntimeError("Defina GITLAB_TOKEN no .env ou no ambiente antes de testar.")
+
+url = "https://gitlab.com/arii19-group/Arii19-project/-/wikis/home"
+headers = {"PRIVATE-TOKEN": token}
+resp = requests.get(url, headers=headers, timeout=30)
+print(resp.status_code, resp.text[:200])

@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export function useChat(apiBaseUrl, userId) {
   const [chatPairs, setChatPairs] = useState([]);
+  const [sessionPairs, setSessionPairs] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
-  const [sessionAnchor, setSessionAnchor] = useState(() => Date.now());
+  const sessionOverrideRef = useRef(false);
 
   const baseUrl = useMemo(() => {
     const sanitized = (apiBaseUrl || '/api').trim() || '/api';
@@ -30,7 +31,14 @@ export function useChat(apiBaseUrl, userId) {
         throw new Error(payload?.detail || 'Falha ao carregar o histórico.');
       }
 
-      setChatPairs(Array.isArray(payload) ? payload : []);
+      const normalized = Array.isArray(payload) ? payload : [];
+      setChatPairs(normalized);
+      setSessionPairs((previous) => {
+        if (sessionOverrideRef.current) {
+          return previous;
+        }
+        return normalized;
+      });
       setError('');
     } catch (historyError) {
       setError(historyError.message || 'Falha ao carregar o histórico.');
@@ -44,29 +52,37 @@ export function useChat(apiBaseUrl, userId) {
   }, [fetchHistory]);
 
   useEffect(() => {
-    setSessionAnchor(Date.now());
+    sessionOverrideRef.current = false;
+    setSessionPairs([]);
   }, [userId]);
 
+  const parseTimestamp = useCallback((value) => {
+    if (!value) {
+      return Number.NaN;
+    }
+
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return value.getTime();
+    }
+
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? Number.NaN : parsed;
+  }, []);
+
   const messages = useMemo(() => {
-    if (!Array.isArray(chatPairs) || chatPairs.length === 0) {
+    if (!Array.isArray(sessionPairs) || sessionPairs.length === 0) {
       return [];
     }
 
-    const orderedPairs = [...chatPairs].sort((a, b) => {
-      const aDate = new Date(a.created_at || 0).getTime();
-      const bDate = new Date(b.created_at || 0).getTime();
-      return aDate - bDate;
+    const orderedPairs = [...sessionPairs].sort((a, b) => {
+      const aDate = parseTimestamp(a.created_at);
+      const bDate = parseTimestamp(b.created_at);
+      const safeADate = Number.isNaN(aDate) ? 0 : aDate;
+      const safeBDate = Number.isNaN(bDate) ? 0 : bDate;
+      return safeADate - safeBDate;
     });
 
-    return orderedPairs
-      .filter((pair) => {
-        const createdAt = new Date(pair.created_at || 0).getTime();
-        if (Number.isNaN(createdAt)) {
-          return true;
-        }
-        return createdAt >= sessionAnchor;
-      })
-      .flatMap((pair) => {
+    return orderedPairs.flatMap((pair) => {
       const items = [];
       if (pair.question) {
         items.push({
@@ -89,7 +105,7 @@ export function useChat(apiBaseUrl, userId) {
 
       return items;
     });
-  }, [chatPairs, sessionAnchor]);
+  }, [parseTimestamp, sessionPairs]);
 
   const sendMessage = useCallback(
     async (question) => {
@@ -115,7 +131,10 @@ export function useChat(apiBaseUrl, userId) {
         sources: [],
       };
 
+      sessionOverrideRef.current = true;
+
       setChatPairs((previous) => [...previous, pendingRecord]);
+      setSessionPairs((previous) => [...previous, pendingRecord]);
       setIsSending(true);
 
       try {
@@ -133,12 +152,12 @@ export function useChat(apiBaseUrl, userId) {
           throw new Error(payload.detail || 'Falha ao enviar a mensagem.');
         }
 
-        setChatPairs((previous) =>
-          previous.map((record) => (record.id === tempId ? payload : record)),
-        );
+        setChatPairs((previous) => previous.map((record) => (record.id === tempId ? payload : record)));
+        setSessionPairs((previous) => previous.map((record) => (record.id === tempId ? payload : record)));
         setError('');
       } catch (sendError) {
         setChatPairs((previous) => previous.filter((record) => record.id !== tempId));
+        setSessionPairs((previous) => previous.filter((record) => record.id !== tempId));
         setError(sendError.message || 'Falha ao enviar a mensagem.');
         throw sendError;
       } finally {
@@ -151,10 +170,11 @@ export function useChat(apiBaseUrl, userId) {
   const resetChat = useCallback(async () => {
     const trimmedUser = (userId || '').trim();
 
+    sessionOverrideRef.current = true;
     if (!trimmedUser) {
       setError('');
       setChatPairs([]);
-      setSessionAnchor(Date.now());
+      setSessionPairs([]);
       return;
     }
 
@@ -168,25 +188,35 @@ export function useChat(apiBaseUrl, userId) {
       }
     }
 
-    setSessionAnchor(Date.now());
+    setSessionPairs([]);
     await fetchHistory();
     setError('');
   }, [baseUrl, userId, fetchHistory]);
 
   const showHistory = useCallback((createdAt) => {
+    sessionOverrideRef.current = true;
+
     if (!createdAt) {
-      setSessionAnchor(0);
+      setSessionPairs(chatPairs);
       return;
     }
 
-    const timestamp = new Date(createdAt).getTime();
+    const timestamp = parseTimestamp(createdAt);
     if (Number.isNaN(timestamp)) {
-      setSessionAnchor(0);
+      setSessionPairs(chatPairs);
       return;
     }
 
-    setSessionAnchor(timestamp - 1);
-  }, []);
+    const filtered = chatPairs.filter((pair) => {
+      const createdAtValue = parseTimestamp(pair.created_at);
+      if (Number.isNaN(createdAtValue)) {
+        return false;
+      }
+      return createdAtValue >= timestamp;
+    });
+
+    setSessionPairs(filtered);
+  }, [chatPairs, parseTimestamp]);
 
   return {
     chatPairs,
