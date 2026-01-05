@@ -1,11 +1,10 @@
 import logging
 import os
-from collections import deque
+from pathlib import Path
 from typing import Dict, List, Optional
-from urllib.parse import urljoin, urldefrag
+from urllib.parse import quote_plus
 
 import requests
-from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
@@ -19,8 +18,7 @@ from langchain_google_genai.chat_models import ChatGoogleGenerativeAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
-WIKI_BASE_URL = "https://gitlab.com/arii19-group/Arii19-project/-/wikis"
-WIKI_HOME_URL = f"{WIKI_BASE_URL}/home"
+GITLAB_API_BASE = "https://gitlab.com/api/v4"
 WIKI_MAX_DEPTH_DEFAULT = 2
 WIKI_MAX_PAGES_DEFAULT = 25
 WIKI_REQUEST_TIMEOUT = 30
@@ -42,67 +40,89 @@ def _ensure_environment() -> None:
 
 
 def _fetch_wiki_documents(max_depth: int, max_pages: int) -> List[Document]:
-    """Baixar páginas do wiki e retornar como documentos LangChain."""
+    """Baixar páginas do wiki via API oficial do GitLab usando tokens privados."""
 
-    visited = set()
-    documents: List[Document] = []
-    queue = deque([(WIKI_HOME_URL, 0)])
+    project_id = (os.getenv("PROJECT_ID") or "").strip()
+    token = (os.getenv("GITLAB_TOKEN") or "").strip()
 
-    while queue and len(documents) < max_pages:
-        current_url, depth = queue.popleft()
-        normalized_url = urldefrag(current_url)[0].rstrip("/")
+    if not project_id:
+        raise RuntimeError("PROJECT_ID não está definido. Configure o ID numérico ou path do projeto GitLab.")
 
-        if normalized_url in visited or depth > max_depth:
-            continue
-
-        try:
-            response = requests.get(current_url, timeout=WIKI_REQUEST_TIMEOUT)
-            response.raise_for_status()
-        except requests.RequestException as exc:
-            logger.warning("Falha ao buscar %s: %s", current_url, exc)
-            visited.add(normalized_url)
-            continue
-
-        soup = BeautifulSoup(response.text, "html.parser")
-        for tag in soup(["script", "style", "nav", "header", "footer"]):
-            tag.decompose()
-
-        content_container = (
-            soup.find("div", id="wiki-content")
-            or soup.find("div", class_="wiki")
-            or soup.find("article")
-            or soup.body
-            or soup
+    if not token:
+        raise RuntimeError(
+            "GITLAB_TOKEN não está definido. Gere um token de acesso pessoal com escopo api/read_api e configure-o."
         )
 
-        page_text = content_container.get_text(separator="\n").strip() if content_container else ""
+    encoded_project = quote_plus(project_id)
+    session = requests.Session()
+    session.headers.update({"PRIVATE-TOKEN": token})
 
-        if page_text:
-            documents.append(
-                Document(page_content=page_text, metadata={"source": normalized_url})
+    slug_env = os.getenv("WIKI_PAGE_SLUGS", "")
+    requested_slugs = [slug.strip() for slug in slug_env.split(",") if slug.strip()]
+
+    def _list_slugs() -> List[str]:
+        if requested_slugs:
+            return requested_slugs[:max_pages]
+
+        slugs: List[str] = []
+        page = 1
+        while len(slugs) < max_pages:
+            response = session.get(
+                f"{GITLAB_API_BASE}/projects/{encoded_project}/wikis",
+                params={"per_page": 100, "page": page},
+                timeout=WIKI_REQUEST_TIMEOUT,
             )
+            response.raise_for_status()
+            payload = response.json()
+            if not payload:
+                break
+            for entry in payload:
+                slug = entry.get("slug")
+                if slug:
+                    slugs.append(slug)
+                    if len(slugs) >= max_pages:
+                        break
+            page += 1
+        return slugs
 
-        visited.add(normalized_url)
-
-        if depth >= max_depth:
+    documents: List[Document] = []
+    for slug in _list_slugs():
+        try:
+            response = session.get(
+                f"{GITLAB_API_BASE}/projects/{encoded_project}/wikis/{quote_plus(slug)}",
+                timeout=WIKI_REQUEST_TIMEOUT,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response else None
+            if status_code in {401, 403}:
+                raise RuntimeError(
+                    "Token GitLab sem acesso à wiki privada. Garanta que o token possui escopo api/read_api no projeto."
+                ) from exc
+            logger.warning("Falha ao baixar a página %s: %s", slug, exc)
+            continue
+        except requests.RequestException as exc:
+            logger.warning("Falha ao baixar a página %s: %s", slug, exc)
             continue
 
-        for link in content_container.find_all("a", href=True) if content_container else []:
-            href = link["href"].strip()
-            if not href or href.startswith("#"):
-                continue
+        content = payload.get("content", "").strip()
+        title = payload.get("title") or slug
+        if not content:
+            continue
 
-            absolute_url = urljoin(current_url, href)
-            absolute_url = urldefrag(absolute_url)[0].rstrip("/")
+        documents.append(
+            Document(
+                page_content=content,
+                metadata={
+                    "source": f"gitlab-wiki:{slug}",
+                    "title": title,
+                },
+            )
+        )
 
-            if not absolute_url.startswith(WIKI_BASE_URL):
-                continue
-
-            if any(absolute_url.endswith(ext) for ext in (".pdf", ".png", ".jpg", ".jpeg", ".svg")):
-                continue
-
-            if absolute_url not in visited:
-                queue.append((absolute_url, depth + 1))
+        if len(documents) >= max_pages:
+            break
 
     return documents
 
@@ -121,14 +141,27 @@ def _load_documents() -> list:
         max_pages = WIKI_MAX_PAGES_DEFAULT
 
     wiki_docs: List[Document] = []
+    docs_path = Path("docs")
 
     fetch_remote = os.getenv("FETCH_WIKI_DOCS", "1").lower() not in {"0", "false"}
     if fetch_remote:
-        wiki_docs = _fetch_wiki_documents(max_depth=max_depth, max_pages=max_pages)
+        try:
+            wiki_docs = _fetch_wiki_documents(max_depth=max_depth, max_pages=max_pages)
+        except RuntimeError as remote_error:
+            logger.warning("Falha ao baixar wiki remoto: %s", remote_error)
+            if not docs_path.exists():
+                raise RuntimeError(
+                    "Não foi possível carregar o wiki remoto e a pasta docs/ não existe. Verifique o GITLAB_TOKEN ou disponibilize arquivos Markdown locais em docs/."
+                ) from remote_error
 
     if not wiki_docs:
+        if not docs_path.exists():
+            raise FileNotFoundError(
+                "A pasta docs/ não foi encontrada. Crie docs/ com arquivos .md ou habilite FETCH_WIKI_DOCS com GITLAB_TOKEN válido."
+            )
+
         loader = DirectoryLoader(
-            "docs/",
+            str(docs_path),
             glob="*.md",
             loader_cls=TextLoader,
             loader_kwargs={"encoding": "utf-8", "autodetect_encoding": True},
